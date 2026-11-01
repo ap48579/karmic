@@ -36,7 +36,7 @@ CODING_HARNESS = HarnessSpec(
 # agents/base.py / llm_provider/), never RSI-editable. Cortex is used by every harness
 # at once; an edit benchmarked against only one harness's benchmark could silently
 # change memory behavior for all the others with nothing to catch it -- same class of
-# cross-consumer blast-radius problem the fintrack exercise surfaced for the vendored
+# cross-consumer blast-radius problem a consumer integration surfaced for the vendored
 # harness files, so the fix is the same: don't let it be edited at all.
 
 RESEARCH_HARNESS = HarnessSpec(

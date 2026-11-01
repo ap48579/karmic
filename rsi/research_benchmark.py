@@ -4,15 +4,14 @@ not by self-report. Same empirical-gate philosophy as the coding harness's
 exact-stdout-match benchmark: ground truth, kept deliberately even though
 Harness² itself doesn't require one (docs/03_integration_spec.md S4).
 
-Shells out to the real `cli.py --research` path built in Spec 3/4, passing
-through whatever QWEN_* env vars are already set in this process -- a
+Shells out to the real `cli.py --research` path built in Spec 3/4, which
+inherits whatever QWEN_* env vars are already set in this process -- a
 worktree's cli.py is a different source tree, so this has to be a real
 subprocess, not an in-process call.
 """
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import tempfile
@@ -42,7 +41,7 @@ RESEARCH_TASKS: list[ResearchTask] = [
     ResearchTask("python_creator",
                  "Who created the Python programming language, and in what year was it first released?",
                  ["Guido van Rossum", "1991"]),
-    ResearchTask("fizzbuzz_boiling",
+    ResearchTask("boiling_point",
                  "What is the boiling point of water in Celsius at sea level under standard atmospheric pressure?",
                  ["100"]),
 ]
@@ -82,12 +81,11 @@ class BenchmarkScore:
 def _run_one_task(repo_root: Path, task: ResearchTask, python_bin: str, scope: str) -> TaskRun:
     with tempfile.TemporaryDirectory(prefix="rsi_research_ws_") as ws, \
          tempfile.TemporaryDirectory(prefix="rsi_research_cortex_") as cortex_dir:
-        env = {**os.environ}
         try:
             proc = subprocess.run(
                 [python_bin, "cli.py", "--research", task.question,
                  "--scope", scope, "--workspace-dir", ws, "--cortex-dir", cortex_dir],
-                capture_output=True, text=True, timeout=TIMEOUT_SECONDS, cwd=str(repo_root), env=env,
+                capture_output=True, text=True, timeout=TIMEOUT_SECONDS, cwd=str(repo_root),
             )
         except subprocess.TimeoutExpired:
             return TaskRun(task.name, None, 0, 0, False, notes="pipeline timed out")

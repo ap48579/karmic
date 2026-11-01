@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+
+def text_key(text: str) -> str:
+    """Stable id fragment for a piece of text. Not hash(): str hashes are salted per
+    process, so an id built from hash() in one run never matches the same text in the
+    next -- which silently broke every cross-run lookup of a pattern node."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 class Outcome(str, Enum):

@@ -8,13 +8,12 @@ a simplified stub in this MVP — see README.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Optional
 
 import chromadb
 
-from .schema import Episode, Outcome
+from .schema import Episode, Outcome, text_key
 
 
 class CortexStore:
@@ -68,7 +67,7 @@ class CortexStore:
     def promote_to_instinct(self, pattern_text: str, source_episode_ids: list[str], scope: str = "default") -> str:
         """Called by Replay once a cluster has >= 3 confirmed independent
         episodes. Returns the instinct entry id."""
-        instinct_id = f"instinct::{abs(hash(pattern_text))}"
+        instinct_id = f"instinct::{text_key(pattern_text)}"
         self.instinct.upsert(
             ids=[instinct_id],
             documents=[pattern_text],
@@ -127,12 +126,7 @@ class CortexStore:
     # ---- full episode access (Tier 2) ----
 
     def get_episode(self, episode_id: str) -> Optional[Episode]:
-        with open(self.episodes_path) as f:
-            for line in f:
-                data = json.loads(line)
-                if data["episode_id"] == episode_id:
-                    return Episode.model_validate(data)
-        return None
+        return next((e for e in self.all_episodes() if e.episode_id == episode_id), None)
 
     def all_episodes(self) -> list[Episode]:
         episodes = []

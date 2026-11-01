@@ -7,7 +7,7 @@ Persistence is SQLite-backed (nodes/edges tables), not a single JSON blob.
 Every mutation (add_node/add_edge/reinforce/decay_all/prune) commits
 immediately, so a crash mid-mutation loses at most that one change instead
 of the whole graph — the previous design re-serialized the entire graph to
-one JSON file on every save(), which had no such guarantee. SQLite needs no
+one JSON file on every save, which had no such guarantee. SQLite needs no
 server and ships with Python's standard library, so this adds no new infra
 dependency. The in-memory NetworkX graph is still what every algorithm here
 (reinforce, decay, spreading activation) actually operates on; SQLite is
@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Optional
 
 import networkx as nx
+
+from .schema import text_key
 
 DEFAULT_LAMBDA = 0.05  # decay rate per day, used when no topic-specific rate is set
 SECONDS_PER_DAY = 86400.0
@@ -45,6 +47,10 @@ CREATE TABLE IF NOT EXISTS edges (
     PRIMARY KEY (source, target, edge_type)
 );
 """
+
+
+def pattern_node_id(pattern_text: str) -> str:
+    return f"pattern::{text_key(pattern_text)}"
 
 
 class MemoryGraph:
@@ -246,18 +252,9 @@ class MemoryGraph:
         )
         self._conn.commit()
 
-    def save(self, path: Optional[str] = None) -> None:
-        """No-op: every mutation already commits to SQLite immediately.
-        Kept only so existing call sites (e.g. pipeline.py's graph.save()
-        after write_back) don't need to change."""
-
-    def load(self, path: Optional[str] = None) -> None:
-        """Rebuilds the in-memory NetworkX graph by reading every row back
-        from SQLite. `path` is accepted for API compatibility but ignored
-        unless it differs from the connection already open in __init__."""
+    def load(self) -> None:
+        """Rebuilds the in-memory NetworkX graph from SQLite."""
         conn = self._conn
-        if path and path != self.persist_path:
-            conn = sqlite3.connect(path)
         if conn is None:
             return
         self.graph = nx.MultiDiGraph()

@@ -10,12 +10,14 @@ pip install -r requirements.txt
 ## Running tests
 
 ```bash
-python -m tests.test_cortex   # no API key needed, covers cortex/ in isolation
+python -m tests.test_cortex            # no API key needed, covers cortex/ in isolation
+python -m tests.test_general_agents    # no model needed, covers agents/general/ via ScriptedLLM
+python -m tests.test_coding_pipeline   # no API key needed, covers the coding pipeline's agents
 ```
 
-There's no test suite for `agents/`, `rsi/`, or the pipelines beyond this
-— those are exercised via dry-run mode (omit `ANTHROPIC_API_KEY`/
-`QWEN_API_KEY` and the pipelines run with placeholder LLM responses,
+Beyond these, `rsi/` and the end-to-end pipelines are exercised via
+dry-run mode (omit `ANTHROPIC_API_KEY`/`QWEN_API_KEY` and the pipelines
+run with placeholder LLM responses,
 exercising the real control flow) and the RSI engine's own benchmark-gated
 mechanics tests (see `docs/05_rsi_harness2_design_spec.md` for how those
 were validated during development).
@@ -27,7 +29,11 @@ This is the one thing to understand before touching `agents/research/`:
 - **Fixed substrate** — `agents/research/gpt_researcher/`'s infrastructure
   (`llm_provider/`, `retrievers/`, `scraper/`, `document/`, `vector_store/`,
   etc.), `agents/research/policies.py` (the hard guardrail layer),
-  `agents/base.py`, and **all of `cortex/`**. Never proposed as an RSI
+  `agents/base.py`, **all of `cortex/`**, and **all of `agents/general/`**
+  (an archetype's benchmark is built from the same validators that guard
+  production calls, so an edit must never be able to change the checks
+  it's graded by; consumers' role *prompts* are the editable surface, and
+  they live in the consumer's own repo). Never proposed as an RSI
   edit, by construction — these files aren't in any
   `HarnessSpec.allowed_files`, for any harness. `cortex/` specifically is
   excluded from *every* harness's component tree on purpose, not just left

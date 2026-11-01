@@ -14,11 +14,8 @@ lever the RSI engine (Spec 5) is meant to experiment with.
 from __future__ import annotations
 
 import asyncio
-import sys
 from dataclasses import dataclass
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent))
 
 from agents.research import configure_qwen
 from agents.research.policies import DEFAULT_POLICIES, Decision, PolicyState, evaluate
@@ -69,6 +66,9 @@ async def _run_research(question: str, scope: str, workspace_dir: str, cortex_di
             f"repeat work already covered, and treat Caution entries as known dead "
             f"ends:\n{memory_context}"
         )
+    note = session.check_steer()
+    if note:
+        research_query += f"\n\nOperator note: {note}"
 
     if dry_run:
         draft = f"[DRY RUN — no QWEN_API_KEY set. Research would run for: {question}]"
@@ -77,7 +77,6 @@ async def _run_research(question: str, scope: str, workspace_dir: str, cortex_di
         from gpt_researcher import GPTResearcher
 
         researcher = GPTResearcher(query=research_query, report_type="research_report")
-        session.check_steer()  # placeholder for a future note between stages
         await researcher.conduct_research()
         session.checkpoint("conduct_research", {})
         draft = await researcher.write_report()

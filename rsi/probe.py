@@ -2,7 +2,8 @@
 accept/reject itself (that's composer.py).
 
 Harnessing-level: apply the edit in an isolated git worktree, run the
-Cortex sanity suite, run the harness's own ground-truth benchmark
+harness's sanity check (HarnessSpec.sanity_fn, defaulting to this repo's
+Cortex suite), run the harness's own ground-truth benchmark
 (HarnessSpec.benchmark_fn) on baseline vs candidate.
 
 Task-level: deliberately not implemented -- see task_probe_not_implemented().
@@ -15,7 +16,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .harness_spec import BenchmarkFn, ScoreLike
+from .harness_spec import BenchmarkFn, SanityFn, ScoreLike
 from .proposer import ProposedEdit
 
 
@@ -57,9 +58,21 @@ def apply_edits(worktree: Path, edits: list[ProposedEdit]) -> tuple[list[str], l
 
 
 def run_sanity_suite(worktree: Path, python_bin: str) -> tuple[bool, str]:
-    proc = subprocess.run([python_bin, "-m", "tests.test_cortex"], cwd=str(worktree),
-                           capture_output=True, text=True, timeout=120)
-    return proc.returncode == 0, (proc.stdout + proc.stderr)[-2000:]
+    """Default sanity check -- only meaningful for this repo's own harnesses. A consumer
+    repo has no tests.test_cortex, so without its own HarnessSpec.sanity_fn every cycle
+    there would be rejected as "test suite failed" before its benchmark ever ran."""
+    return run_command_sanity([python_bin, "-m", "tests.test_cortex"])(worktree, python_bin)
+
+
+def run_command_sanity(cmd: list[str], timeout: int = 300) -> SanityFn:
+    """SanityFn from a command run in the worktree, e.g. ["pytest", "-q", "tests/unit"]."""
+    def _sanity(worktree: Path, python_bin: str) -> tuple[bool, str]:
+        try:
+            proc = subprocess.run(cmd, cwd=str(worktree), capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return False, f"sanity command timed out after {timeout}s: {' '.join(cmd)}"
+        return proc.returncode == 0, (proc.stdout + proc.stderr)[-2000:]
+    return _sanity
 
 
 @dataclass
@@ -72,10 +85,11 @@ class HarnessingProbeResult:
 
 def harnessing_probe(
     baseline_wt: Path, candidate_wt: Path, python_bin: str, benchmark_fn: BenchmarkFn,
+    sanity_fn: SanityFn | None = None,
 ) -> HarnessingProbeResult:
     """Caller is responsible for creating/tearing down the two worktrees --
     this just applies tests+benchmark to whatever is already staged in each."""
-    tests_ok, test_output = run_sanity_suite(candidate_wt, python_bin)
+    tests_ok, test_output = (sanity_fn or run_sanity_suite)(candidate_wt, python_bin)
     if not tests_ok:
         return HarnessingProbeResult(tests_ok=False, test_output=test_output)
     baseline_score = benchmark_fn(baseline_wt, python_bin)

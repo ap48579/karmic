@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from .base import Agent, AgentResult
@@ -95,22 +94,14 @@ class Tester:
             return {"passed": False, "stdout": "", "stderr": "Timed out", "returncode": -1}
 
 
-@dataclass
-class DebuggerAttempt:
-    effort: str
-    fix_summary: str
-    passed: bool
-
-
 class Debugger:
     """Self-paced healing loop: escalating thinking budget across attempts.
-    Attempt 3 spawns parallel hypotheses (sequential calls in this MVP —
-    true concurrency is a straightforward upgrade, not a logic change)."""
+    From attempt 3 on it proposes one fix per hypothesis instead of one fix,
+    and the caller tests them in order (sequential calls here -- running
+    them concurrently is an upgrade, not a logic change)."""
 
     ESCALATION = ["medium", "high", "max"]
-
-    def __init__(self):
-        self.attempts: list[DebuggerAttempt] = []
+    HYPOTHESIS_HINTS = ["focus on the literal error message", "consider an off-by-one or type mismatch"]
 
     def _agent_for_effort(self, effort: str) -> Agent:
         return Agent(
@@ -123,33 +114,21 @@ class Debugger:
             thinking_budget=effort,
         )
 
-    def diagnose_and_fix(self, code: str, error: dict, attempt_number: int) -> tuple[str, str]:
+    def diagnose_and_fix(self, code: str, error: dict, attempt_number: int) -> tuple[list[str], str]:
+        """Returns (candidate rewrites to test in order, effort used)."""
         effort = self.ESCALATION[min(attempt_number, len(self.ESCALATION) - 1)]
-
-        if attempt_number < 2:
-            agent = self._agent_for_effort(effort)
+        hints = [None] if attempt_number < 2 else self.HYPOTHESIS_HINTS
+        agent = self._agent_for_effort(effort)
+        candidates = []
+        for hint in hints:
             prompt = (
                 f"This code failed:\n```python\n{code}\n```\n\n"
                 f"stderr:\n{error['stderr']}\nstdout:\n{error['stdout']}\n\n"
-                "Diagnose and fix it."
+                "Diagnose and fix it." + (f" Hint: {hint}" if hint else "")
             )
-            result = agent.run(prompt)
-            _, fixed_code = extract_code_block(result.text)
-            return fixed_code, effort
-
-        # Attempt 3+: parallel hypotheses (sequential calls here; see docstring).
-        hypotheses = []
-        for variant_hint in ["focus on the literal error message", "consider an off-by-one or type mismatch"]:
-            agent = self._agent_for_effort("max")
-            prompt = (
-                f"This code failed:\n```python\n{code}\n```\n\n"
-                f"stderr:\n{error['stderr']}\nstdout:\n{error['stdout']}\n\n"
-                f"Diagnose and fix it. Hint: {variant_hint}"
-            )
-            result = agent.run(prompt)
-            _, fixed_code = extract_code_block(result.text)
-            hypotheses.append(fixed_code)
-        return hypotheses[0], "max"  # caller re-tests; pipeline.py tries each in order
+            _, fixed_code = extract_code_block(agent.run(prompt).text)
+            candidates.append(fixed_code)
+        return candidates, effort
 
 
 class Reviewer:

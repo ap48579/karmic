@@ -2,13 +2,16 @@
     python -m tests.test_cortex
 """
 
+import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, run_replay, write_back
+from cortex.graph import pattern_node_id
 
 TEST_ROOT = Path("./test_cortex_data")
 _counter = {"n": 0}
@@ -123,7 +126,24 @@ def test_replay_merges_confirmed_cluster():
 
     instinct_entries = store.all_instinct()
     assert len(instinct_entries) >= 1
+    # Replay must find the pattern node write-back created, or the old pattern is never superseded.
+    old, canonical = (pattern_node_id("validate configuration is loaded before use"),
+                      pattern_node_id("Always validate configuration exists before dereferencing it"))
+    assert graph.graph.has_edge(old, canonical, key="supersedes")
     print(f"PASS: test_replay_merges_confirmed_cluster ({summary})")
+
+
+def test_pattern_ids_are_stable_across_processes():
+    # Regression: ids were built from hash(), which Python salts per process, so a pattern
+    # written in one run was invisible to Replay or write-back in the next.
+    code = "from cortex.graph import pattern_node_id; print(pattern_node_id('validate config before use'))"
+    ids = {
+        subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
+                       cwd=str(Path(__file__).parent.parent), env={**os.environ, "PYTHONHASHSEED": seed}).stdout.strip()
+        for seed in ("1", "2")
+    }
+    assert ids == {pattern_node_id("validate config before use")}, ids
+    print("PASS: test_pattern_ids_are_stable_across_processes")
 
 
 def test_replay_rejects_false_merge():
@@ -151,5 +171,6 @@ if __name__ == "__main__":
     test_spreading_activation()
     test_replay_merges_confirmed_cluster()
     test_replay_rejects_false_merge()
+    test_pattern_ids_are_stable_across_processes()
     shutil.rmtree(TEST_ROOT, ignore_errors=True)
     print("\nAll Cortex tests passed.")

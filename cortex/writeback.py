@@ -7,7 +7,7 @@ model-agnostic, per the "inference-time scaffolding only" philosophy).
 
 from __future__ import annotations
 
-from .graph import MemoryGraph
+from .graph import MemoryGraph, pattern_node_id
 from .retrieval import RetrievalContext
 from .schema import Episode, Outcome
 from .store import CortexStore
@@ -36,7 +36,7 @@ def write_back(
     base_weight = 0.5 + episode.salience_boost()
 
     if episode.abstracted_pattern:
-        pattern_node = f"pattern::{abs(hash(episode.abstracted_pattern))}"
+        pattern_node = pattern_node_id(episode.abstracted_pattern)
         graph.add_node(pattern_node, node_type="pattern", text=episode.abstracted_pattern)
         graph.add_edge(
             episode.episode_id,
@@ -63,15 +63,12 @@ def write_back(
                 success=success,
             )
 
-        # Caution hits that were surfaced but the episode failed anyway despite
-        # the warning being heeded is *not* a contradiction signal on its own —
-        # but a Caution hit whose advice was followed and still led to failure
-        # is exactly the "contradicts" case: the heuristic recommended by a
-        # pattern node led somewhere bad.
+        # A pattern surfaced as Intuition for an episode that still failed is
+        # evidence against that pattern: the heuristic it recommended led
+        # somewhere bad, so link the two with a `contradicts` edge.
         if not success:
             for hit in retrieved.intuition_hits:
-                pattern_text = hit["document"]
-                pattern_node = f"pattern::{abs(hash(pattern_text))}"
+                pattern_node = pattern_node_id(hit["document"])
                 if pattern_node in graph.graph:
                     graph.add_edge(
                         episode.episode_id,

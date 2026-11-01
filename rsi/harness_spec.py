@@ -26,6 +26,9 @@ class ScoreLike(Protocol):
 
 
 BenchmarkFn = Callable[[Path, str], ScoreLike]
+# (worktree, python_bin) -> (ok, output tail). Run on the candidate before any benchmark;
+# a consumer repo points this at its own test subset (docs/09_agent_archetypes_spec.md S7).
+SanityFn = Callable[[Path, str], tuple[bool, str]]
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class HarnessSpec:
     component_tree: list[Component]  # the editable surface, optionally grouped by role
     benchmark_fn: BenchmarkFn  # (repo_root, python_bin) -> ScoreLike, run inside a worktree
     cortex_domain: str  # Episode.domain to filter traces by when building the report
+    sanity_fn: SanityFn | None = None  # None = this repo's Cortex suite (probe.run_sanity_suite)
 
     @property
     def allowed_files(self) -> list[str]:

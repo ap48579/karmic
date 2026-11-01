@@ -8,14 +8,12 @@ Flow (coding_agent_plan.md "Coding Self-Healing Flow"):
 
 from __future__ import annotations
 
-import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-
-from agents.pipeline_agents import ContextBuilder, Coder, Debugger, LearningAgent, Planner, Reviewer, Tester
+from agents.pipeline_agents import (
+    ContextBuilder, Coder, Debugger, LearningAgent, Planner, Reviewer, Tester, extract_code_block,
+)
 from cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, write_back
 from cortex.schema import ActionArcStep, CostActual, HealerAttempt
 
@@ -74,7 +72,6 @@ def run_pipeline(task: str, scope: str = "default", workspace_dir: str = "./work
     # 4. Coder
     coder_result = Coder().run(planner_result.text)
     track(coder_result)
-    from agents.pipeline_agents import extract_code_block
     filename, code = extract_code_block(coder_result.text)
     action_arc.append(ActionArcStep(action="code", tool_used="Coder", output=f"wrote {filename} ({len(code)} chars)"))
 
@@ -91,11 +88,13 @@ def run_pipeline(task: str, scope: str = "default", workspace_dir: str = "./work
     debugger = Debugger()
     attempt_n = 0
     while not test_result["passed"] and attempt_n < MAX_DEBUGGER_ATTEMPTS:
-        fixed_code, effort_used = debugger.diagnose_and_fix(code, test_result, attempt_n)
-        code = fixed_code
-        test_result = tester.run(workspace, filename, code)
+        candidates, effort_used = debugger.diagnose_and_fix(code, test_result, attempt_n)
+        for code in candidates:  # first passing candidate wins; otherwise the last one tried stands
+            test_result = tester.run(workspace, filename, code)
+            if test_result["passed"]:
+                break
         healer_attempts.append(HealerAttempt(
-            hypothesis=f"attempt {attempt_n + 1} at effort={effort_used}",
+            hypothesis=f"attempt {attempt_n + 1} at effort={effort_used}, {len(candidates)} candidate(s)",
             fix=f"{len(code)} char rewrite",
             outcome="passed" if test_result["passed"] else f"failed: {test_result['stderr'][:150]}",
         ))
@@ -134,6 +133,5 @@ def run_pipeline(task: str, scope: str = "default", workspace_dir: str = "./work
     )
 
     write_back(store, graph, episode, retrieved=retrieved)
-    graph.save()
 
     return PipelineResult(episode=episode, final_code=code, workspace=workspace, review=review_text, dry_run=planner_result.dry_run)

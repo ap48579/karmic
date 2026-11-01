@@ -4,7 +4,7 @@
     python cli.py "write a function that returns the nth fibonacci number"
     python cli.py --research "In what year was the Eiffel Tower completed?"
     python cli.py --stats                       # show Cortex memory stats
-    python cli.py --self-improve                 # run a recursive self-improvement cycle on the coding harness (see selfmod/)
+    python cli.py --self-improve --harness research   # one RSI cycle on a harness (see rsi/)
 
 --research needs QWEN_API_KEY (+ QWEN_BASE_URL for a self-hosted/Ollama
 endpoint, + QWEN_MODEL) set; see agents/research/qwen_config.py.
@@ -23,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("task", nargs="?", help="Task description (coding), or question with --research")
     parser.add_argument("--research", action="store_true",
-                         help="Run the deep-research pipeline instead of coding (not wired up yet, see docs/04)")
+                         help="Run the deep-research pipeline instead of the coding pipeline")
     parser.add_argument("--scope", default="default")
     parser.add_argument("--workspace-dir", default="./workspace")
     parser.add_argument("--cortex-dir", default="./cortex_data")

@@ -16,7 +16,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from .graph import MemoryGraph
+from .graph import MemoryGraph, pattern_node_id
 from .store import CortexStore
 
 ComparisonResult = tuple[bool, Optional[str]]  # (same_pattern, canonical_label_if_same)
@@ -106,11 +106,11 @@ def run_replay(
 
         summary.clusters_merged += 1
         canonical_label = canonical_label or cluster_docs[0]
-        pattern_node = f"pattern::{abs(hash(canonical_label))}"
+        pattern_node = pattern_node_id(canonical_label)
         graph.add_node(pattern_node, node_type="pattern", text=canonical_label)
 
         for old_doc, episode_id in zip(cluster_docs, cluster_episode_ids):
-            old_pattern_node = f"pattern::{abs(hash(old_doc))}"
+            old_pattern_node = pattern_node_id(old_doc)
             if old_pattern_node != pattern_node and old_pattern_node in graph.graph:
                 graph.add_edge(old_pattern_node, pattern_node, edge_type="supersedes", weight=1.0)
             graph.add_edge(episode_id, pattern_node, edge_type="instance_of", weight=0.7)

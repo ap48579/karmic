@@ -15,8 +15,8 @@ fi
 
 source venv/bin/activate
 
-mkdir -p selfmod_data/logs
-LOG_FILE="selfmod_data/logs/$(date +%Y%m%d_%H%M%S).log"
+mkdir -p rsi_data/logs
+LOG_FILE="rsi_data/logs/$(date +%Y%m%d_%H%M%S).log"
 
-python cli.py --self-improve --cycles "${SELFMOD_CYCLES:-1}" >> "$LOG_FILE" 2>&1
+python cli.py --self-improve --cycles "${RSI_CYCLES:-1}" >> "$LOG_FILE" 2>&1
 echo "self-improve cycle finished, see $LOG_FILE"

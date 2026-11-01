@@ -12,7 +12,8 @@ Safety model:
   - Edits only ever land in a throwaway git worktree, never in this
     process's own working directory, and never in the files currently
     being imported to run this very cycle.
-  - Acceptance requires both: the Cortex test suite still passing, AND a
+  - Acceptance requires both: the harness's sanity check still passing
+    (HarnessSpec.sanity_fn; this repo's Cortex suite by default), AND a
     strictly better score on the harness's own benchmark than the current
     lineage tip. No human judgment call and no self-reported "this is
     better."
@@ -160,7 +161,7 @@ async def run_cycle(
         patch_path = data_dir / "proposals" / f"gen{gen_n}.patch"
         patch_path.write_text(_run_git(["show", "HEAD"], candidate_wt).stdout)
 
-        result = harnessing_probe(baseline_wt, candidate_wt, python_bin, harness.benchmark_fn)
+        result = harnessing_probe(baseline_wt, candidate_wt, python_bin, harness.benchmark_fn, harness.sanity_fn)
         if not result.tests_ok:
             return finish("rejected", plan.summary, applied_edits=applied,
                            detail=f"test suite failed:\n{result.test_output}")
