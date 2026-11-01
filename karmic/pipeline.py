@@ -11,11 +11,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from agents.pipeline_agents import (
+from karmic.agents.pipeline_agents import (
     ContextBuilder, Coder, Debugger, LearningAgent, Planner, Reviewer, Tester, extract_code_block,
 )
-from cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, write_back
-from cortex.schema import ActionArcStep, CostActual, HealerAttempt
+from karmic.cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, write_back
+from karmic.cortex.schema import ActionArcStep, CostActual, HealerAttempt
 
 MAX_DEBUGGER_ATTEMPTS = 4
 

@@ -3,7 +3,7 @@
 talks to their LLM; it just awaits whatever `llm_call(system, user) -> str`
 coroutine it's given, and treats an empty string as the dry-run signal.
 
-These two adapters are what self_healing_ai's own coding and research
+These two adapters are what Karmic's own coding and research
 harnesses pass in -- proving the interface works for two genuinely
 different providers (Anthropic's Messages API vs. any Ollama/DashScope
 model via an OpenAI-compatible endpoint) before any other consumer touches
@@ -26,9 +26,9 @@ def qwen_ollama_llm_call(tier: str = "STRATEGIC_LLM") -> LLMCall:
     The underlying call returns "" (the engine's dry-run signal) if no
     QWEN_API_KEY/QWEN_BASE_URL was configured.
     """
-    import agents.research  # noqa: F401 -- side effect: puts gpt_researcher on sys.path
+    from ..agents import research  # side effect: puts gpt_researcher on sys.path
 
-    agents.research.configure_qwen()  # called once at adapter construction, not per-request
+    research.configure_qwen()  # called once at adapter construction, not per-request
 
     async def _call(system: str, user: str) -> str:
         from gpt_researcher.llm_provider.generic import GenericLLMProvider
@@ -73,7 +73,7 @@ def claude_llm_call(thinking_budget: str = "max") -> LLMCall:
     selfmod/meta_agent.py used before this engine was unified.
     """
     async def _call(system: str, user: str) -> str:
-        from agents.base import Agent
+        from ..agents.base import Agent
 
         agent = Agent(name="self_improvement_planner", system_prompt=system, thinking_budget=thinking_budget)
         result = agent.run(user)  # synchronous call -- fine here, this is a single-cycle CLI tool, not a server

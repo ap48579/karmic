@@ -4,7 +4,7 @@
     python cli.py "write a function that returns the nth fibonacci number"
     python cli.py --research "In what year was the Eiffel Tower completed?"
     python cli.py --stats                       # show Cortex memory stats
-    python cli.py --self-improve --harness research   # one RSI cycle on a harness (see rsi/)
+    python cli.py --self-improve --harness research   # one RSI cycle on a harness (see karmic/rsi/)
 
 --research needs QWEN_API_KEY (+ QWEN_BASE_URL for a self-hosted/Ollama
 endpoint, + QWEN_MODEL) set; see agents/research/qwen_config.py.
@@ -16,7 +16,7 @@ import os
 import sys
 from pathlib import Path
 
-from pipeline import run_pipeline
+from karmic.pipeline import run_pipeline
 
 
 def main():
@@ -38,14 +38,14 @@ def main():
     args = parser.parse_args()
 
     if args.stats:
-        from cortex import CortexStore
+        from karmic.cortex import CortexStore
         store = CortexStore(persist_dir=args.cortex_dir)
         print(store.stats())
         return
 
     if args.self_improve:
         repo_root = Path(__file__).parent
-        from rsi import HARNESSES, LLM_CALL_FACTORIES, run_cycle
+        from karmic.rsi import HARNESSES, LLM_CALL_FACTORIES, run_cycle
 
         harness = HARNESSES[args.harness]
         env_key = "ANTHROPIC_API_KEY" if args.harness == "coding" else "QWEN_API_KEY"
@@ -76,7 +76,7 @@ def main():
             print("WARNING: QWEN_API_KEY is not set — running in DRY RUN mode. "
                   "The research harness will return placeholder text instead of real "
                   "completions.\n", file=sys.stderr)
-        from research_pipeline import run_research_pipeline
+        from karmic.research_pipeline import run_research_pipeline
         result = run_research_pipeline(args.task, scope=args.scope,
                                         workspace_dir=args.workspace_dir, cortex_dir=args.cortex_dir)
         print(f"\n{'='*60}")

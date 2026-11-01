@@ -11,12 +11,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agents.general import (
+from karmic.agents.general import (
     NOT_FOUND, Call, EvidenceIndex, Field, Fixture, LLMError, NumberPolicy, RoleConfig, ScriptedLLM, debate,
     debater, decision_maker, evidence_analyst, extractor, load_fixtures, reflector, run, save_fixtures,
     score_fixtures,
 )
-from agents.general.validators import find_span, number_supported, unsupported_numbers, validate_claims, validate_schema
+from karmic.agents.general.validators import find_span, number_supported, unsupported_numbers, validate_claims, validate_schema
 
 ROLE = RoleConfig(role="test_role", system_prompt="You are a test analyst.")
 

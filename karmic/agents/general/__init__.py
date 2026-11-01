@@ -3,7 +3,7 @@ fixed validator, a self-healing loop, Cortex hooks and a benchmark shape.
 The consumer supplies prompts, evidence and fixtures; orchestration stays
 with the consumer. See docs/09_agent_archetypes_spec.md.
 
-    from agents.general import Call, EvidenceIndex, RoleConfig, evidence_analyst, ollama_json, run
+    from karmic.agents.general import Call, EvidenceIndex, RoleConfig, evidence_analyst, ollama_json, run
 
     ev = EvidenceIndex()
     ev.add("metric", "load test 2026-08-01: p95 latency 412 ms at 1,200 req/s", {"p95_ms": 412, "rps": 1200})

@@ -6,7 +6,7 @@ Two halves, matching WRITING_YOUR_OWN_BENCHMARK.md's subprocess rule:
                                                  # reading that worktree's prompt files
   run_benchmark(repo_root, python_bin)           # your HarnessSpec.benchmark_fn; calls the above
 
-Fixtures are frozen agents.general.Fixture records (jsonl). Build them from real past calls with
+Fixtures are frozen karmic.agents.general.Fixture records (jsonl). Build them from real past calls with
 Fixture.from_call(...) and add the mechanical facts a correct answer must have -- 5-10 per role
 to start, weighted toward cases the current prompt gets wrong. Only facts checkable from the
 fixture itself -- never a slow, noisy downstream outcome (docs/09_agent_archetypes_spec.md S8).
@@ -28,7 +28,7 @@ MODEL = "qwen3:14b"  # TODO: keep fixed across baseline and candidate
 
 
 def main() -> None:
-    from agents.general import RoleConfig, evidence_analyst, load_fixtures, ollama_json, score_fixtures
+    from karmic.agents.general import RoleConfig, evidence_analyst, load_fixtures, ollama_json, score_fixtures
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--json-out", required=True)

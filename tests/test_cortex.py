@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, run_replay, write_back
-from cortex.graph import pattern_node_id
+from karmic.cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, run_replay, write_back
+from karmic.cortex.graph import pattern_node_id
 
 TEST_ROOT = Path("./test_cortex_data")
 _counter = {"n": 0}
@@ -136,7 +136,7 @@ def test_replay_merges_confirmed_cluster():
 def test_pattern_ids_are_stable_across_processes():
     # Regression: ids were built from hash(), which Python salts per process, so a pattern
     # written in one run was invisible to Replay or write-back in the next.
-    code = "from cortex.graph import pattern_node_id; print(pattern_node_id('validate config before use'))"
+    code = "from karmic.cortex.graph import pattern_node_id; print(pattern_node_id('validate config before use'))"
     ids = {
         subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
                        cwd=str(Path(__file__).parent.parent), env={**os.environ, "PYTHONHASHSEED": seed}).stdout.strip()

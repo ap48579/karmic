@@ -1,5 +1,5 @@
 """Composer -- decides accept/reject and owns the lineage branch + generation
-log, for any HarnessSpec. This is the one generic engine: self_healing_ai's
+log, for any HarnessSpec. This is the one generic engine: Karmic's
 own coding harness, its research harness, and any third-party consumer's
 own exported strategy surface are all just different (HarnessSpec,
 llm_call) pairs passed into the same run_cycle() -- nothing here is

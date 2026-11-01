@@ -1,6 +1,6 @@
 # Writing Your Own Benchmark
 
-The RSI engine (`rsi/`) accepts a proposed edit if and only if it scores
+The RSI engine (`karmic/rsi/`) accepts a proposed edit if and only if it scores
 strictly better on your harness's `benchmark_fn` than the current lineage
 tip. That's the *entire* acceptance criterion — there is no human review
 step, no self-reported "this looks better," no second opinion. **A
@@ -14,7 +14,7 @@ means for your use case.
 
 ## What makes a benchmark actually useful here
 
-Look at `rsi/research_benchmark.py` and `rsi/coding_benchmark.py` in this
+Look at `karmic/rsi/research_benchmark.py` and `karmic/rsi/coding_benchmark.py` in this
 repo for the pattern, but the two properties that matter are:
 
 1. **Ground truth, not self-report.** Every task needs a way to check
@@ -30,7 +30,7 @@ repo for the pattern, but the two properties that matter are:
    against whatever source tree is being evaluated (baseline or
    candidate) — not an in-process call that might accidentally import
    code that's already loaded instead of the worktree's edited copy. See
-   `rsi/research_benchmark.py`'s docstring for why this has to be a real
+   `karmic/rsi/research_benchmark.py`'s docstring for why this has to be a real
    subprocess.
 
 ## A concrete worked example
@@ -77,6 +77,6 @@ strictly greater than baseline's," and nothing else.
 A `BenchmarkFn` is any `Callable[[Path, str], ScoreLike]` — repo root and
 a Python interpreter path in, something with a `scalar_score: float` and a
 `to_prompt_text() -> str` out. Pass it as `benchmark_fn` when constructing
-your own `rsi.HarnessSpec` (see `agents/research/scaffold.py`'s exported
+your own `karmic.rsi.HarnessSpec` (see `karmic/agents/research/scaffold.py`'s exported
 `README.md` for the full setup sequence once you've exported your own copy
 of the harness).

@@ -23,7 +23,7 @@ CODING_HARNESS = HarnessSpec(
     component_tree=[
         Component(
             id="c1", name="agents",
-            files=["agents/pipeline_agents.py", "pipeline.py"],
+            files=["karmic/agents/pipeline_agents.py", "karmic/pipeline.py"],
             description="Planner/Coder/Debugger/Reviewer prompts and the orchestration constants "
                         "(MAX_DEBUGGER_ATTEMPTS).",
         ),
@@ -49,30 +49,30 @@ RESEARCH_HARNESS = HarnessSpec(
     component_tree=[
         Component(
             id="c1", name="system_prompt",
-            files=["agents/research/gpt_researcher/prompts.py",
-                   "agents/research/gpt_researcher/actions/agent_creator.py"],
+            files=["karmic/agents/research/gpt_researcher/prompts.py",
+                   "karmic/agents/research/gpt_researcher/actions/agent_creator.py"],
             description="Prompt templates and the dynamic per-query persona. Guardrail instructions "
                         "(soft) live here too -- the hard guardrail layer (agents/research/policies.py) "
                         "is never RSI-editable.",
         ),
         Component(
             id="c5", name="tool_guidance",
-            files=["agents/research/gpt_researcher/actions/retriever.py",
-                   "agents/research/gpt_researcher/actions/web_scraping.py"],
+            files=["karmic/agents/research/gpt_researcher/actions/retriever.py",
+                   "karmic/agents/research/gpt_researcher/actions/web_scraping.py"],
             description="How retriever/scraper results get used -- not the fetch mechanics themselves.",
         ),
         Component(
             id="c6", name="subagents",
-            files=["agents/research/gpt_researcher/skills/researcher.py",
-                   "agents/research/gpt_researcher/skills/writer.py",
-                   "agents/research/gpt_researcher/skills/curator.py"],
+            files=["karmic/agents/research/gpt_researcher/skills/researcher.py",
+                   "karmic/agents/research/gpt_researcher/skills/writer.py",
+                   "karmic/agents/research/gpt_researcher/skills/curator.py"],
             description="The investigate/write/curate role implementations.",
         ),
         Component(
             id="c7", name="scripts",
-            files=["agents/research/gpt_researcher/actions/query_processing.py",
-                   "agents/research/gpt_researcher/actions/report_generation.py",
-                   "research_pipeline.py"],
+            files=["karmic/agents/research/gpt_researcher/actions/query_processing.py",
+                   "karmic/agents/research/gpt_researcher/actions/report_generation.py",
+                   "karmic/research_pipeline.py"],
             description="Sub-question generation, report-writing glue, and our own orchestration "
                         "constants (MAX_REVISIONS).",
         ),

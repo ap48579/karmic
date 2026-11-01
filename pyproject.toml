@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "self-healing-ai"
-version = "0.2.0"
-description = "Cortex memory + a research/coding agent harness + a generic RSI self-improvement engine"
+name = "karmic"
+version = "0.3.0"
+description = "Karmic AI: agents that learn from the consequences of their own actions -- Cortex memory, benchmark-gated self-improvement, and reusable agent roles"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"
@@ -32,8 +32,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Core (above) = cortex + rsi + agents.general, enough to drive any archetype against a local
-# Ollama model (agents.general.ollama_json / rsi.ollama_json_call). The vendored GPT Researcher
+# Core (above) = karmic.cortex + karmic.rsi + karmic.agents.general, enough to drive any role
+# against a local Ollama model (karmic.agents.general.ollama_json / karmic.rsi.ollama_json_call). The vendored GPT Researcher
 # tree and the coding pipeline's Claude client are opt-in, so a consumer that only wants
 # Cortex or an archetype doesn't pull in the LangChain stack (docs/09 S10).
 claude = ["anthropic>=0.112.0"]
@@ -56,20 +56,17 @@ research = [
     "requests>=2.32.5",
     "tiktoken>=0.14.0",
 ]
-all = ["self-healing-ai[claude,research]"]
+all = ["karmic[claude,research]"]
 
 [project.urls]
-Homepage = "https://github.com/ap48579/self_healing_ai"
+Homepage = "https://github.com/ap48579/karmic"
 
 [tool.setuptools.packages.find]
-include = ["cortex*", "agents*", "rsi*"]
+include = ["karmic*"]
 exclude = ["tests*"]
 
-[tool.setuptools]
-py-modules = ["pipeline", "research_pipeline"]
-
 [tool.setuptools.package-data]
-"agents.general" = ["templates/*.py", "templates/prompts/*.md"]
+"karmic.agents.general" = ["templates/*.py", "templates/prompts/*.md"]
 # The vendored tree's Apache-2.0 license and provenance must ship with it, and the
 # browser scraper reads overlay.js from disk at runtime.
-"agents.research" = ["gpt_researcher_LICENSE", "VENDOR.md", "gpt_researcher/scraper/browser/js/*.js"]
+"karmic.agents.research" = ["gpt_researcher_LICENSE", "VENDOR.md", "gpt_researcher/scraper/browser/js/*.js"]

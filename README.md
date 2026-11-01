@@ -1,25 +1,27 @@
-# self-healing-ai
+# Karmic AI
 
-A memory system, an agent harness, and a self-improvement engine, designed
-to be used together or separately:
+Agents that learn from the consequences of their own actions. A memory
+system, agent harnesses, and a self-improvement engine, designed to be used
+together or separately:
 
-- **`cortex/`** — cross-episode memory for an agent. Recall (literal
+- **`karmic.cortex`** — cross-episode memory for an agent. Recall (literal
   similarity), Intuition (structural patterns), Caution (known dead ends),
   Instinct (reinforced heuristics promoted after repeated confirmation) —
   backed by ChromaDB + a SQLite-persisted "groove" graph with Hebbian
   reinforcement and time-based decay. Fully domain-agnostic: point it at
   any project via `persist_dir` + `Episode.domain`/`scope`.
-- **`agents/`** — two working harnesses built on it: a self-healing coding
-  agent (`pipeline.py`, Claude-backed) and an autonomous deep-research
-  agent (`research_pipeline.py`, vendoring GPT Researcher, configured for
-  local Ollama or DashScope via `agents/research/qwen_config.py`).
-- **`rsi/`** — a generic recursive self-improvement engine. Any harness —
-  these two, or your own — gets its own git lineage branch, its own
-  ground-truth benchmark, and its own ALLOW/ASK/DENY-style hard guardrail
-  boundary (`agents/research/policies.py`) that no proposed edit can
-  cross. Design: `docs/05_rsi_harness2_design_spec.md`.
-- **`agents/general/`** — reusable single-call agent *roles* for your own
-  pipeline: Evidence Analyst, Adversarial Debater, Decision Maker,
+- **`karmic.agents`** — two working harnesses built on it: a self-healing
+  coding agent (`karmic/pipeline.py`, Claude-backed) and an autonomous
+  deep-research agent (`karmic/research_pipeline.py`, vendoring GPT
+  Researcher, configured for local Ollama or DashScope via
+  `karmic/agents/research/qwen_config.py`).
+- **`karmic.rsi`** — a generic recursive self-improvement engine. Any
+  harness — these two, or your own — gets its own git lineage branch, its
+  own ground-truth benchmark, and its own ALLOW/ASK/DENY-style hard
+  guardrail boundary (`karmic/agents/research/policies.py`) that no
+  proposed edit can cross. Design: `docs/05_rsi_harness2_design_spec.md`.
+- **`karmic.agents.general`** — reusable single-call agent *roles* for your
+  own pipeline: Evidence Analyst, Adversarial Debater, Decision Maker,
   Extractor/Classifier, Reflector. Each ships a fixed validator (claims
   must cite evidence ids, numbers must match the cited item, extractions
   must quote the source verbatim), a self-healing loop that feeds the
@@ -28,15 +30,17 @@ to be used together or separately:
   Design and the repo each archetype borrows from:
   `docs/09_agent_archetypes_spec.md`.
 
-Design rationale for the whole project lives in `docs/01` through `docs/05`
+Design rationale for the whole project lives in `docs/01` through `docs/09`
 — each one documents what was built, what was tried and abandoned, and why,
-as the project evolved.
+as the project evolved. They were written before the code moved under
+`karmic/`, so a path like `cortex/schema.py` in a spec means
+`karmic/cortex/schema.py`.
 
 ## Install
 
 ```bash
-git clone https://github.com/ap48579/self_healing_ai.git
-cd self_healing_ai
+git clone https://github.com/ap48579/karmic.git
+cd karmic
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -44,15 +48,15 @@ pip install -r requirements.txt
 To use it as a dependency from another project instead:
 
 ```bash
-pip install "self-healing-ai @ git+https://github.com/ap48579/self_healing_ai.git"
+pip install "karmic @ git+https://github.com/ap48579/karmic.git"
 # or, for local development against a clone:
-pip install -e /path/to/self_healing_ai
+pip install -e /path/to/karmic
 ```
 
-The core install is light (cortex + rsi + agents.general: chromadb, httpx,
-networkx, numpy, pydantic). The research harness and the Claude-backed
-coding pipeline are extras: `self-healing-ai[research]`,
-`self-healing-ai[claude]`, or `self-healing-ai[all]`.
+The core install is light (`karmic.cortex`, `karmic.rsi`,
+`karmic.agents.general`: chromadb, httpx, networkx, numpy, pydantic). The
+research harness and the Claude-backed coding pipeline are extras:
+`karmic[research]`, `karmic[claude]`, or `karmic[all]`.
 
 ## Quickstart
 
@@ -74,10 +78,10 @@ python cli.py --self-improve --harness research
 python cli.py --self-improve --harness coding
 ```
 
-## Using an archetype in your own pipeline
+## Using an agent role in your own pipeline
 
 ```python
-from agents.general import Call, EvidenceIndex, RoleConfig, evidence_analyst, ollama_json, run
+from karmic.agents.general import Call, EvidenceIndex, RoleConfig, evidence_analyst, ollama_json, run
 
 ev = EvidenceIndex()
 ev.add("metric", "load test 2026-08-01: p95 latency 412 ms at 1,200 req/s", {"p95_ms": 412, "rps": 1200})
@@ -90,10 +94,10 @@ result.metrics             # citation_validity, number_verified_rate, heal_attem
 
 `run()` never raises on model failure; it returns a safe default with
 `validation.failed=True`. Starter prompts and a benchmark template are in
-`agents/general/templates/`. To RSI-gate a role, save real calls as
-`agents.general.Fixture`s and point your `HarnessSpec.benchmark_fn` at the
-template (and `HarnessSpec.sanity_fn` at your own tests, e.g.
-`rsi.run_command_sanity(["pytest", "-q"])`).
+`karmic/agents/general/templates/`. To RSI-gate a role, save real calls as
+`karmic.agents.general.Fixture`s and point your `HarnessSpec.benchmark_fn`
+at the template (and `HarnessSpec.sanity_fn` at your own tests, e.g.
+`karmic.rsi.run_command_sanity(["pytest", "-q"])`).
 
 ## Using the research harness in your own project
 
@@ -103,7 +107,7 @@ history instead of a copy shared with anyone else. To get your own copy:
 
 ```python
 from pathlib import Path
-from agents.research.scaffold import export_strategy
+from karmic.agents.research.scaffold import export_strategy
 
 export_strategy(Path("./my_research_harness"))
 ```
@@ -116,10 +120,10 @@ anything meaningful to gate on. **Writing that benchmark is the single
 most important step** — see `docs/WRITING_YOUR_OWN_BENCHMARK.md`.
 
 Commit the exported directory to your own repo, build a `HarnessSpec`
-pointing at it (see `rsi.harness_spec.HarnessSpec` and
-`rsi.harnesses.RESEARCH_HARNESS` for the shape), and call `rsi.run_cycle()`
-— nothing in `rsi/proposer.py`, `probe.py`, or `composer.py` needs to
-change for a new consumer.
+pointing at it (see `karmic.rsi.HarnessSpec` and
+`karmic.rsi.RESEARCH_HARNESS` for the shape), and call
+`karmic.rsi.run_cycle()` — nothing in `karmic/rsi/proposer.py`,
+`probe.py`, or `composer.py` needs to change for a new consumer.
 
 ## Testing
 
@@ -127,13 +131,14 @@ change for a new consumer.
 python -m tests.test_cortex            # no API key needed
 python -m tests.test_general_agents    # no model needed (scripted LLM)
 python -m tests.test_coding_pipeline   # no API key needed (stub agents)
+python -m tests.test_rsi               # no API key needed
 ```
 
 ## License
 
 Apache 2.0 (`LICENSE`). The vendored GPT Researcher tree under
-`agents/research/gpt_researcher/` keeps its own Apache 2.0 license —
-see `agents/research/VENDOR.md` for provenance.
+`karmic/agents/research/gpt_researcher/` keeps its own Apache 2.0 license —
+see `karmic/agents/research/VENDOR.md` for provenance.
 
 ## Contributing
 

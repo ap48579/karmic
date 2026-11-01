@@ -17,12 +17,12 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
-from agents.research import configure_qwen
-from agents.research.policies import DEFAULT_POLICIES, Decision, PolicyState, evaluate
-from agents.research.reflection import grade, reflect, revise
-from agents.research.session import EpisodeSession
-from cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, write_back
-from cortex.schema import ActionArcStep, CostActual, HealerAttempt
+from karmic.agents.research import configure_qwen
+from karmic.agents.research.policies import DEFAULT_POLICIES, Decision, PolicyState, evaluate
+from karmic.agents.research.reflection import grade, reflect, revise
+from karmic.agents.research.session import EpisodeSession
+from karmic.cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, write_back
+from karmic.cortex.schema import ActionArcStep, CostActual, HealerAttempt
 
 MAX_REVISIONS = 3
 

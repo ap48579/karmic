@@ -20,7 +20,7 @@
 
 None yet. Any future edit (manual, or via the RSI engine per
 `docs/05_rsi_harness2_design_spec.md`) should be recorded here with a short
-note and the commit that made it, so `git log agents/research/gpt_researcher/`
+note and the commit that made it, so `git log --follow karmic/agents/research/gpt_researcher/<file>`
 plus this file together tell the full story of how our copy has diverged
 from `v3.7.0`.
 

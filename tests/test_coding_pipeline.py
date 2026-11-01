@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agents.base import AgentResult
-from agents.pipeline_agents import Debugger
+from karmic.agents.base import AgentResult
+from karmic.agents.pipeline_agents import Debugger
 
 
 class _StubAgent:

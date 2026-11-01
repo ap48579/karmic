@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 
-from cortex import CortexStore, Outcome
+from ..cortex import CortexStore, Outcome
 
 
 @dataclass

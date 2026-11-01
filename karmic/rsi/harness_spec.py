@@ -1,6 +1,6 @@
 """A HarnessSpec is the one thing you need to supply to point the generic
 self-improvement engine at a harness -- any harness, in any repo, calling
-any LLM. This is the seam that lets the same engine serve self_healing_ai's
+any LLM. This is the seam that lets the same engine serve Karmic's
 own coding harness, its research harness, and -- once exported via
 agents.research.scaffold.export_strategy() -- any third-party consumer's
 own copy of the research strategy surface, each with its own repo, its own

@@ -115,7 +115,7 @@ class Result:
 
     def to_episode(self, role: str, domain: str, scope: str = "default", problem_summary: str | None = None):
         """A Cortex process Episode for this call -- its outcome is known immediately (S9.2)."""
-        from cortex.schema import ActionArcStep, CostActual, Episode, HealerAttempt, Outcome
+        from ...cortex.schema import ActionArcStep, CostActual, Episode, HealerAttempt, Outcome
 
         arc = [ActionArcStep(action=f"attempt {a.n}", tool_used=role,
                              output=f"{len(a.problems)} problems: {', '.join(sorted({p.kind for p in a.problems})) or 'none'}")

@@ -47,7 +47,7 @@ _README_TEMPLATE = """# Your own copy of the research harness
 
 This directory is a full, self-sufficient copy of the vendored GPT
 Researcher tree, exported so you can run the self-improvement engine
-(`rsi`) against your own git repo instead of sharing one physical copy
+(`karmic.rsi`) against your own git repo instead of sharing one physical copy
 with anyone else.
 
 ## What you should actually edit
@@ -77,9 +77,9 @@ upgrading the package, not by editing it here.
    generic trivia benchmark tells you nothing about whether an edit helped
    your actual use case.
 3. Build a `HarnessSpec` pointing at your own files (see
-   `rsi.harness_spec.HarnessSpec` and `rsi.harnesses.RESEARCH_HARNESS` in
+   `karmic.rsi.harness_spec.HarnessSpec` and `karmic.rsi.harnesses.RESEARCH_HARNESS` in
    the installed package for the shape to follow) and an `llm_call` (reuse
-   `rsi.qwen_ollama_llm_call()` / `rsi.claude_llm_call()`, or write your own
+   `karmic.rsi.qwen_ollama_llm_call()` / `karmic.rsi.claude_llm_call()`, or write your own
    -- any `async def (system: str, user: str) -> str` works).
 4. Put this directory earlier on `sys.path` than the installed package's
    own copy before importing `gpt_researcher`, so your edited files are
@@ -92,7 +92,7 @@ name, a number) in YOUR domain. RSI's benchmark-gate is only as meaningful
 as what you put here: a generic trivia benchmark tells you nothing about
 whether a proposed edit actually helped your actual use case.
 
-Shape mirrors rsi.research_benchmark / rsi.coding_benchmark in the
+Shape mirrors karmic.rsi.research_benchmark / karmic.rsi.coding_benchmark in the
 installed package -- a BenchmarkFn is any
 `(repo_root: Path, python_bin: str) -> ScoreLike` where ScoreLike has a
 `scalar_score: float` and a `to_prompt_text() -> str`.
@@ -133,7 +133,7 @@ class BenchmarkScore:
 def run_benchmark(repo_root: Path, python_bin: str = "python3") -> BenchmarkScore:
     """TODO: wire this up to actually run your pipeline against each task
     and check its output for the required keywords -- see
-    rsi.research_benchmark._run_one_task in the installed package for the
+    karmic.rsi.research_benchmark._run_one_task in the installed package for the
     subprocess + keyword-match pattern to copy."""
     raise NotImplementedError("Replace EXAMPLE_TASKS above and implement this against your own pipeline entrypoint.")
 '''
