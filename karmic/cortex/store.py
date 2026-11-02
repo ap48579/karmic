@@ -39,6 +39,10 @@ class CortexStore:
             "scope": episode.scope,
             "outcome": episode.outcome.value,
         }
+        # Chroma metadata can't hold None, so optional fields are present only when set.
+        for key in ("outcome_value", "outcome_metric", "decision"):
+            if getattr(episode, key) is not None:
+                meta[key] = getattr(episode, key)
 
         self.recall.add(
             ids=[episode.episode_id],

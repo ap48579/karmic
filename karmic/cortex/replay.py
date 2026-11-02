@@ -16,7 +16,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from .graph import MemoryGraph, pattern_node_id
+from .graph import EvidenceGate, MemoryGraph, pattern_node_id
 from .store import CortexStore
 
 ComparisonResult = tuple[bool, Optional[str]]  # (same_pattern, canonical_label_if_same)
@@ -67,6 +67,24 @@ def _greedy_cluster(ids: list[str], embeddings: list[list[float]], threshold: fl
     return [members for members in clusters.values() if len(members) >= 2]
 
 
+def _has_evidence(store: CortexStore, gate: EvidenceGate, cluster_metas: list[dict]) -> bool:
+    """Process episodes (no `decision`) are exempt: their outcome is known at once. PARTIAL
+    outcomes are the noise band, so they count toward `min_n` but not for or against the
+    pattern in the binomial test."""
+    decided = [m for m in cluster_metas if "decision" in m]
+    if not decided:
+        return True
+    if len(decided) < gate.min_n:
+        return False
+    decisive = [m["outcome"] for m in decided if m["outcome"] != "partial"]
+    if not decisive:
+        return False
+    domain_metas = store.recall.get(where={"domain": decided[0]["domain"]})["metadatas"]
+    base = [m["outcome"] for m in domain_metas if "decision" in m and m["outcome"] != "partial"]
+    base_rate = base.count("success") / len(base)
+    return gate.significant(decisive.count("success"), len(decisive), base_rate)
+
+
 def run_replay(
     store: CortexStore,
     graph: MemoryGraph,
@@ -74,6 +92,7 @@ def run_replay(
     promote_threshold: int = 3,
     similarity_threshold: float = 0.82,
     lambda_by_topic: Optional[dict[str, float]] = None,
+    evidence_gate: Optional[EvidenceGate] = None,
 ) -> ReplaySummary:
     summary = ReplaySummary()
 
@@ -91,7 +110,8 @@ def run_replay(
     for member_idxs in clusters:
         cluster_docs = [docs[i] for i in member_idxs]
         cluster_episode_ids = [ids[i] for i in member_idxs]
-        cluster_scope = metas[member_idxs[0]].get("scope", "default")
+        cluster_metas = [metas[i] for i in member_idxs]
+        cluster_scope = cluster_metas[0].get("scope", "default")
 
         same_pattern, canonical_label = compare_fn(cluster_docs)
 
@@ -107,7 +127,11 @@ def run_replay(
         summary.clusters_merged += 1
         canonical_label = canonical_label or cluster_docs[0]
         pattern_node = pattern_node_id(canonical_label)
-        graph.add_node(pattern_node, node_type="pattern", text=canonical_label)
+        # Recomputed from the cluster on every pass, so repeated Replays don't double-count.
+        graph.add_node(pattern_node, node_type="pattern", text=canonical_label,
+                       n=0, success=0, failure=0, partial=0, outcome_values=[])
+        for meta in cluster_metas:
+            graph.record_outcome(pattern_node, meta["outcome"], meta.get("outcome_value"), meta.get("outcome_metric"))
 
         for old_doc, episode_id in zip(cluster_docs, cluster_episode_ids):
             old_pattern_node = pattern_node_id(old_doc)
@@ -116,7 +140,9 @@ def run_replay(
             graph.add_edge(episode_id, pattern_node, edge_type="instance_of", weight=0.7)
             graph.reinforce(episode_id, pattern_node, "instance_of", success=True)
 
-        if len(cluster_episode_ids) >= promote_threshold:
+        if len(cluster_episode_ids) >= promote_threshold and (
+            evidence_gate is None or _has_evidence(store, evidence_gate, cluster_metas)
+        ):
             store.promote_to_instinct(canonical_label, cluster_episode_ids, scope=cluster_scope)
             summary.promoted_to_instinct += 1
 

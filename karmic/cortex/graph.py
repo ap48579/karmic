@@ -20,6 +20,7 @@ import json
 import math
 import sqlite3
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -51,6 +52,28 @@ CREATE TABLE IF NOT EXISTS edges (
 
 def pattern_node_id(pattern_text: str) -> str:
     return f"pattern::{text_key(pattern_text)}"
+
+
+@dataclass(frozen=True)
+class EvidenceGate:
+    """How much outcome evidence a pattern needs before it may influence a decision.
+    A pattern surfaces as Intuition once `min_n` outcome episodes back it, and is promoted
+    to Instinct only if its success rate beats the domain's base rate by a one-sided
+    binomial test at `alpha`. Independent re-runs of layered-memory agents did worse than
+    a no-memory baseline: lessons the model wrote and then reinforced itself were the weak
+    point, so the gate counts outcomes instead (docs/09 §9.5)."""
+
+    min_n: int = 10
+    alpha: float = 0.05
+
+    def significant(self, successes: int, trials: int, base_rate: float) -> bool:
+        if trials == 0:
+            return False
+        p_value = sum(
+            math.comb(trials, i) * base_rate**i * (1 - base_rate) ** (trials - i)
+            for i in range(successes, trials + 1)
+        )
+        return p_value < self.alpha
 
 
 class MemoryGraph:
@@ -126,6 +149,30 @@ class MemoryGraph:
         data["last_reinforced"] = time.time()
         self._persist_edge(source, target, edge_type)
         return new_weight
+
+    def record_outcome(
+        self,
+        node_id: str,
+        outcome: str,
+        value: Optional[float] = None,
+        metric: Optional[str] = None,
+    ) -> None:
+        """Running outcome counts on a pattern node: n plus one count per Outcome value,
+        and the raw values so mean and median stay exact."""
+        attrs = self.graph.nodes[node_id]
+        attrs["n"] = attrs.get("n", 0) + 1
+        attrs[outcome] = attrs.get(outcome, 0) + 1
+        if value is not None:
+            attrs["outcome_values"] = attrs.get("outcome_values", []) + [value]
+            attrs["outcome_metric"] = metric
+        self._persist_node(node_id)
+
+    def outcome_stats(self, node_id: str) -> dict:
+        if node_id not in self.graph:
+            return {}
+        attrs = self.graph.nodes[node_id]
+        keys = ("n", "success", "failure", "partial", "outcome_values", "outcome_metric")
+        return {key: attrs[key] for key in keys if key in attrs}
 
     # ---- decay ----
 

@@ -258,9 +258,57 @@ over months, never inside an RSI gate.
    and the consumer can raise it per domain.
 4. **Separate store per consumer.** `CortexStore(persist_dir=...)` already
    allows it; fintrack uses its own directory, `domain="fintrack_fund"`.
+5. **Structured outcomes, aggregated by code.**
+   - **Schema:** add optional `outcome_value: float` and `outcome_metric: str` to `Episode`, for
+     example excess return over a stated horizon.
+   - **Counts per pattern:** on write-back, keep running statistics on each pattern node (n,
+     successes, failures, partials, mean and median `outcome_value`).
+   - **Rendering:** `to_prompt_text()` prints those statistics next to each Intuition/Instinct
+     line ("seen 9×: 2 success / 5 failure / 2 partial, median −1.8%"). The model then reads
+     evidence, not just an assertion.
+   - **Why:**
+     - FINSABER re-ran FinMem (layered memory) over 2004–2024 with costs and found it significantly
+       worse than buy-and-hold.
+     - Independent post-cutoff tests found the most memory-heavy agents degraded most.
+     - The reported memory/reflection gains come from the authors' own short in-sample ablations.
 
-All four keep `cortex/` model-agnostic and are covered by extending
-`tests/test_cortex.py` (as_of filtering, deferred write, noise band).
+     Free-text lessons, reinforced by the same model that wrote them, are the weak point; counts
+     computed by code are not.
+6. **Evidence gate before a pattern can influence a decision.**
+   - **Rule:** a pattern surfaces as Intuition only once at least `min_n` independent outcome
+     episodes support it. It is promoted to Instinct only when its outcome rate differs from the
+     domain's base rate by a one-sided binomial test at `alpha`.
+   - **Parameters:** both are per domain; suggested defaults `min_n=10` and `alpha=0.05`.
+   - **Replay:** Replay's ≥3-episode clustering remains the first step; this gate sits on top.
+   - **Process episodes are exempt:** a validator problem or heal attempt has a known, immediate
+     outcome.
+7. **Outcomes for actions not taken.** A consumer's decision step often declines things: skips,
+   vetoes, exits. If only taken actions ever get outcomes, memory learns only from the actions
+   that went wrong and never from the cost of declining.
+   - **Field:** add `decision: Optional[Literal["acted", "declined"]]` to `Episode`. For a
+     declined episode, `outcome` says whether declining was right. `None` marks a process
+     episode, which is how §9.6 knows to exempt it.
+   - **Writing:** the consumer writes declined-decision episodes with the same deferred-outcome
+     rule (§9.2) and noise band (§9.3), scored on what the declined item did next.
+   - **Rendering:** `to_prompt_text()` labels them, so an over-cautious streak is visible.
+   - **Domain-neutral example:** a release reviewer that blocks deploys should also learn from the
+     blocked releases that would have been fine.
+8. **One query per item, not one blended query.** A consumer deciding over several items (a
+   committee over 20 holdings) should not concatenate them into one retrieval query. The
+   embedding of a blend matches nothing well.
+   - **API:** add `retrieve_many(queries: list[str], k_each, k_total)`, which queries per item,
+     de-duplicates by episode id, and keeps the per-item grouping in `to_prompt_text()`.
+
+As built for 5–8: the gate is `EvidenceGate(min_n, alpha)`, passed as `evidence_gate=` to
+`retrieve()`, `retrieve_many()` and `run_replay()`. Without it, behaviour is unchanged. The
+binomial test is one-sided (success rate above the base rate). PARTIAL outcomes count toward
+`min_n` but are left out of the test, because they are the noise band. The base rate covers
+every decision episode in the cluster's domain, including the cluster itself.
+
+All of these keep `cortex/` model-agnostic and are covered by extending `tests/test_cortex.py`:
+as_of filtering, deferred write, noise band, outcome statistics on write-back, the evidence gate
+(below `min_n` → not surfaced; significant → promoted), declined-decision rendering, and
+`retrieve_many` de-duplication.
 
 ## 10. Packaging
 
@@ -378,7 +426,8 @@ own lesson was that the engine is easy and the benchmark is the work.
 | 6 (part). `HarnessSpec.sanity_fn` | **done.** `rsi.run_command_sanity([...])` builds one from a command; the default is unchanged for this repo's harnesses. |
 | fixtures + scalar (§7) | **done.** `Fixture`, `score_fixtures()`, plus `templates/benchmark_template.py` and starter prompts. Template run end-to-end against qwen3:14b in a mock consumer repo. |
 | 4. fintrack switch-over | not started (fintrack repo) |
-| 5. Cortex `as_of`, deferred outcomes, noise band | not started |
+| 5. Cortex `as_of`, deferred outcomes, noise band | not started (fintrack works around `as_of` by disabling recall for replays older than 3 days, and applies the noise band and deferred write itself) |
+| 5b. §9.5–9.8: structured outcomes, evidence gate, declined decisions, `retrieve_many` | **done.** Added Nov 2026 after fintrack's evidence review of LLM trading agents (FinMem/FINSABER results); covered in `tests/test_cortex.py` |
 | 6 (rest). fixture export in fintrack, first harnessing cycle | not started |
 | 7. task-level RSI (§6) | not started; `Result.history` holds what its probe needs |
 | 8. A1 on SearXNG for news | not started |

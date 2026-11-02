@@ -10,7 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from karmic.cortex import CortexStore, Episode, MemoryGraph, Outcome, retrieve, run_replay, write_back
+from karmic.cortex import (CortexStore, Episode, EvidenceGate, MemoryGraph, Outcome, retrieve, retrieve_many,
+                           run_replay, write_back)
 from karmic.cortex.graph import pattern_node_id
 
 TEST_ROOT = Path("./test_cortex_data")
@@ -163,6 +164,107 @@ def test_replay_rejects_false_merge():
     print(f"PASS: test_replay_rejects_false_merge ({summary})")
 
 
+def test_outcome_statistics_on_write_back():
+    store, _ = fresh_store_and_graph()
+    graph_path = store.persist_dir / "graph.db"
+    graph = MemoryGraph(persist_path=str(graph_path))
+    pattern = "momentum after an earnings beat fades within a week"
+    for outcome, value in [(Outcome.SUCCESS, 0.02), (Outcome.FAILURE, -0.03), (Outcome.FAILURE, -0.01),
+                           (Outcome.PARTIAL, 0.001)]:
+        write_back(store, graph, Episode(problem_summary="hold through earnings?", outcome=outcome,
+                                         abstracted_pattern=pattern, outcome_value=value,
+                                         outcome_metric="excess_return_5d", decision="acted"))
+
+    # Counts survive a reload, since consumers keep the graph across runs.
+    stats = MemoryGraph(persist_path=str(graph_path)).outcome_stats(pattern_node_id(pattern))
+    assert (stats["n"], stats["success"], stats["failure"], stats["partial"]) == (4, 1, 2, 1), stats
+    text = retrieve(store, graph, "hold through earnings?").to_prompt_text()
+    assert "seen 4×: 1 success / 2 failure / 1 partial; excess_return_5d mean -0.00475, median -0.0045" in text, text
+    print("PASS: test_outcome_statistics_on_write_back")
+
+
+def test_evidence_gate_hides_thin_patterns():
+    store, graph = fresh_store_and_graph()
+    gate = EvidenceGate(min_n=3)
+    write_back(store, graph, Episode(problem_summary="sell before the dividend date",
+                                     abstracted_pattern="dividend capture rarely beats the price drop",
+                                     decision="acted"))
+    # A process episode has no decision, so it surfaces however thin its evidence.
+    write_back(store, graph, Episode(problem_summary="validator rejected the order size",
+                                     abstracted_pattern="order size must respect the lot limit"))
+
+    surfaced = [h["document"] for h in retrieve(store, graph, "dividend date sale", k=5,
+                                                evidence_gate=gate).intuition_hits]
+    assert surfaced == ["order size must respect the lot limit"], surfaced
+
+    for _ in range(2):
+        write_back(store, graph, Episode(problem_summary="sell before the dividend date",
+                                         abstracted_pattern="dividend capture rarely beats the price drop",
+                                         decision="acted"))
+    surfaced = [h["document"] for h in retrieve(store, graph, "dividend date sale", k=5,
+                                                evidence_gate=gate).intuition_hits]
+    assert "dividend capture rarely beats the price drop" in surfaced, surfaced
+    print("PASS: test_evidence_gate_hides_thin_patterns")
+
+
+def _replay_with_gate(cluster_outcomes: list[Outcome], other_outcomes: list[Outcome]):
+    store, graph = fresh_store_and_graph()
+    for outcome in cluster_outcomes:
+        write_back(store, graph, Episode(problem_summary="buy the post-split dip", outcome=outcome,
+                                         abstracted_pattern="post-split dips recover", decision="acted"))
+    # The rest of the domain sets the base rate; no pattern, so nothing else clusters.
+    for outcome in other_outcomes:
+        write_back(store, graph, Episode(problem_summary="unrelated trade", outcome=outcome, decision="acted"))
+    summary = run_replay(store, graph, compare_fn=lambda docs: (True, None), promote_threshold=3,
+                         evidence_gate=EvidenceGate(min_n=10, alpha=0.05))
+    return summary, graph
+
+
+def test_evidence_gate_promotes_only_significant_patterns():
+    # 10/10 against a 50% base rate: p = 1/1024.
+    summary, graph = _replay_with_gate([Outcome.SUCCESS] * 10, [Outcome.FAILURE] * 10)
+    assert summary.promoted_to_instinct == 1, summary
+    assert graph.outcome_stats(pattern_node_id("post-split dips recover"))["n"] == 10
+
+    # The base rate includes the cluster: 11/20 = 0.55, so 6/10 gives p ~ 0.50 and the
+    # pattern stays an Intuition.
+    summary, _ = _replay_with_gate([Outcome.SUCCESS] * 6 + [Outcome.FAILURE] * 4,
+                                   [Outcome.SUCCESS] * 5 + [Outcome.FAILURE] * 5)
+    assert summary.clusters_merged == 1 and summary.promoted_to_instinct == 0, summary
+
+    # Enough for Replay's >=3 episodes, but below min_n.
+    summary, _ = _replay_with_gate([Outcome.SUCCESS] * 3, [Outcome.FAILURE] * 10)
+    assert summary.promoted_to_instinct == 0, summary
+    print("PASS: test_evidence_gate_promotes_only_significant_patterns")
+
+
+def test_declined_decisions_are_labeled():
+    store, graph = fresh_store_and_graph()
+    write_back(store, graph, Episode(problem_summary="block the release with a flaky test",
+                                     outcome=Outcome.FAILURE, decision="declined"))
+    text = retrieve(store, graph, "block the release").to_prompt_text()
+    assert "- [declined · failure] block the release with a flaky test" in text, text
+    print("PASS: test_declined_decisions_are_labeled")
+
+
+def test_retrieve_many_dedupes_and_groups_by_item():
+    store, graph = fresh_store_and_graph()
+    disk = Episode(problem_summary="disk usage alert on the database host")
+    cert = Episode(problem_summary="TLS certificate expiring on the load balancer")
+    write_back(store, graph, disk)
+    write_back(store, graph, cert)
+
+    queries = ["database host disk is filling up", "load balancer certificate renewal"]
+    ctx = retrieve_many(store, graph, queries, k_each=2, k_total=10)
+    assert sorted(h["id"] for h in ctx.recall_hits) == sorted([disk.episode_id, cert.episode_id])
+    assert {h["id"]: h["query"] for h in ctx.recall_hits} == {disk.episode_id: queries[0],
+                                                               cert.episode_id: queries[1]}
+    text = ctx.to_prompt_text()
+    first, second = text.split("## Item: load balancer certificate renewal")
+    assert "disk usage alert" in first and "TLS certificate" in second, text
+    print("PASS: test_retrieve_many_dedupes_and_groups_by_item")
+
+
 if __name__ == "__main__":
     test_write_and_recall()
     test_intuition_catches_structural_match()
@@ -172,5 +274,10 @@ if __name__ == "__main__":
     test_replay_merges_confirmed_cluster()
     test_replay_rejects_false_merge()
     test_pattern_ids_are_stable_across_processes()
+    test_outcome_statistics_on_write_back()
+    test_evidence_gate_hides_thin_patterns()
+    test_evidence_gate_promotes_only_significant_patterns()
+    test_declined_decisions_are_labeled()
+    test_retrieve_many_dedupes_and_groups_by_item()
     shutil.rmtree(TEST_ROOT, ignore_errors=True)
     print("\nAll Cortex tests passed.")

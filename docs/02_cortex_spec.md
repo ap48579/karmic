@@ -19,8 +19,9 @@ inside `cortex/` itself.
 
 - **Schema** (`cortex/schema.py`): `Episode` (problem_summary, action_arc,
   healer_attempts, outcome, abstracted_pattern, failure_summary,
-  distilled_learnings, cost_actual, domain, scope), plus
-  `salience_boost()` — the predicted-vs-actual difficulty surprise signal.
+  distilled_learnings, cost_actual, domain, scope, and the optional
+  outcome_value / outcome_metric / decision), plus `salience_boost()` — the
+  predicted-vs-actual difficulty surprise signal.
 - **Store** (`cortex/store.py`): ChromaDB-backed `recall` / `intuition` /
   `caution` / `instinct` collections (vector search per index), plus
   `episodes.jsonl` as the Tier-2 full structured-arc log.
@@ -30,14 +31,19 @@ inside `cortex/` itself.
   associative (non-literal-similarity) retrieval. Persisted to SQLite
   (`graph.sqlite3` — nodes/edges tables, transactional per-mutation commits),
   not a single JSON blob — a crash mid-write loses at most the one
-  in-flight change, not the whole graph.
+  in-flight change, not the whole graph. Pattern nodes carry outcome counts
+  (`record_outcome()` / `outcome_stats()`); `EvidenceGate` holds the
+  per-domain `min_n` / `alpha` (docs/09 §9.5–9.6).
 - **Retrieval** (`cortex/retrieval.py`): queries all four indices + expands
   via spreading activation, renders a single `to_prompt_text()` block
   (Recall / Intuition / Caution / Instinct sections) for injection into a
-  prompt.
+  prompt, with each pattern's outcome counts beside it. `retrieve_many()`
+  runs one query per item and groups the block by item; an optional
+  `evidence_gate` hides decision patterns with fewer than `min_n` outcomes.
 - **Replay** (`cortex/replay.py`): greedy cosine-similarity clustering over
   Intuition entries, a model-backed `compare_fn` decides same-pattern or
-  not, confirmed clusters (≥3 independent episodes) promote to Instinct,
+  not, confirmed clusters (≥3 independent episodes, plus a binomial test
+  against the domain base rate when an `evidence_gate` is passed) promote to Instinct,
   rejected clusters down-weight their spurious edges, then a decay+prune pass.
 - **Write-back** (`cortex/writeback.py`): persists the episode, adds/updates
   graph nodes, reinforces/weakens `co_retrieved_with` edges for whatever was

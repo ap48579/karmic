@@ -45,6 +45,7 @@ def write_back(
             weight=base_weight,
             topic=episode.domain,
         )
+        graph.record_outcome(pattern_node, episode.outcome.value, episode.outcome_value, episode.outcome_metric)
 
     if retrieved is not None:
         for other_id in retrieved.all_surfaced_episode_ids:
