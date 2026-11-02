@@ -207,6 +207,25 @@ def test_evidence_gate_hides_thin_patterns():
     print("PASS: test_evidence_gate_hides_thin_patterns")
 
 
+def test_gate_counts_patterns_merged_by_replay():
+    # Regression: counts were read from each hit's own wording, so differently worded copies
+    # of one pattern stayed at n=1 each and never cleared the gate, even after Replay merged them.
+    store, graph = fresh_store_and_graph()
+    for pattern in ("validate config before use", "validate the config before use",
+                    "always validate config before use"):
+        write_back(store, graph, Episode(problem_summary="config missing at startup", abstracted_pattern=pattern,
+                                         decision="acted"))
+    gate = EvidenceGate(min_n=3)
+    assert retrieve(store, graph, "config missing", k=5, evidence_gate=gate).intuition_hits == []
+
+    summary = run_replay(store, graph, compare_fn=lambda docs: (True, "validate configuration before use"),
+                         similarity_threshold=0.5)
+    assert summary.clusters_merged == 1, summary
+    hits = retrieve(store, graph, "config missing", k=5, evidence_gate=gate).intuition_hits
+    assert len(hits) == 3 and all(h["stats"]["n"] == 3 for h in hits), hits
+    print("PASS: test_gate_counts_patterns_merged_by_replay")
+
+
 def _replay_with_gate(cluster_outcomes: list[Outcome], other_outcomes: list[Outcome]):
     store, graph = fresh_store_and_graph()
     for outcome in cluster_outcomes:
@@ -277,6 +296,7 @@ if __name__ == "__main__":
     test_outcome_statistics_on_write_back()
     test_evidence_gate_hides_thin_patterns()
     test_evidence_gate_promotes_only_significant_patterns()
+    test_gate_counts_patterns_merged_by_replay()
     test_declined_decisions_are_labeled()
     test_retrieve_many_dedupes_and_groups_by_item()
     shutil.rmtree(TEST_ROOT, ignore_errors=True)

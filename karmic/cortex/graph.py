@@ -168,6 +168,16 @@ class MemoryGraph:
         self._persist_node(node_id)
 
     def outcome_stats(self, node_id: str) -> dict:
+        """Read from the pattern Replay merged this one into, if any: model-written patterns
+        rarely repeat word for word, so the counts on the original node stay at one or two
+        and would never clear an EvidenceGate."""
+        seen = {node_id}
+        while node_id in self.graph:
+            merged = next((t for _, t, k in self.graph.out_edges(node_id, keys=True) if k == "supersedes"), None)
+            if merged is None or merged in seen:
+                break
+            seen.add(merged)
+            node_id = merged
         if node_id not in self.graph:
             return {}
         attrs = self.graph.nodes[node_id]
